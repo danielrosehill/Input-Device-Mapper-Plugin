@@ -20,6 +20,9 @@ Use it before building per-device bindings in an app, an input-remapper preset o
 
 - `map-input-device`: find the device, read its declared keys/axes, run the guided press session, check the
   browser's Gamepad API view, record the profile.
+- `lookup-device-mapping`: match connected devices against a mapping library by vendor:product and load the existing
+  profile. Default library: [Device-Mappings](https://github.com/danielrosehill/Device-Mappings); point
+  `--library` or `DEVICE_MAPPINGS_LIBRARY` at your own `devices.json`.
 
 ## Script
 
@@ -31,6 +34,7 @@ Use it before building per-device bindings in an app, an input-remapper preset o
 | `info <dev>` | udev properties, declared keys, axes and ranges, force feedback |
 | `capture <dev> --count N` | the first N distinct inputs, in press order (keys, hat directions, axes past half travel) |
 | `press <dev> --label L` | wait for one input and print it (the guided session) |
+| `library [--library URL]` | which connected devices a mapping library already has |
 | `watch <dev> --seconds S` | every press as JSON lines |
 
 `<dev>` is `/dev/input/eventN`, a `/dev/input/by-id/...` path, or `vvvv:pppp`.

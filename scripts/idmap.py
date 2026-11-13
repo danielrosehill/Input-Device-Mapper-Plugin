@@ -8,6 +8,8 @@ Subcommands (all print JSON):
                                 half travel) and print them in the order they were first pressed
   press <device> [--label L]    wait for ONE input and print it (the one-button-at-a-time session; drains anything
                                 pressed before it started, so a stray earlier press is not reported)
+  library [--library URL]       match every connected device against a mapping library (devices.json, schema
+                                device-mappings-index/1) and print the hits with their repo and profile file
   watch <device> --seconds S    print every press for S seconds (JSON lines), for free exploration
 
 <device> is /dev/input/eventN, a /dev/input/by-id/... path, or a vendor:product like 046d:c21d.
@@ -205,6 +207,42 @@ def cmd_press(a):
     print(json.dumps({"label": a.label, "timeout": a.seconds}))
 
 
+DEFAULT_LIBRARY = "https://raw.githubusercontent.com/danielrosehill/Device-Mappings/main/devices.json"
+
+
+def cmd_library(a):
+    import urllib.request
+    url = a.library or os.environ.get("DEVICE_MAPPINGS_LIBRARY") or DEFAULT_LIBRARY
+    if os.path.exists(url):
+        lib = json.load(open(url))
+    else:
+        with urllib.request.urlopen(url, timeout=15) as r:
+            lib = json.load(r)
+    by_usb = {}
+    for d in lib.get("devices", []):
+        by_usb.setdefault(d["usb"].lower(), []).append(d)
+    ids, seen, connected = by_id_paths(), set(), []
+    for path in evdev.list_devices():
+        try:
+            dev = evdev.InputDevice(path)
+        except PermissionError:
+            continue
+        vp = f"{dev.info.vendor:04x}:{dev.info.product:04x}"
+        if vp in seen or vp in ("0000:0000",):
+            continue
+        seen.add(vp)
+        hits = by_usb.get(vp, [])
+        for h in hits:
+            repo = h.get("repo", "")
+            h["repo_url"] = f"https://github.com/{repo}" if repo and "://" not in repo else repo
+            h["profile_url"] = f"https://raw.githubusercontent.com/{repo}/HEAD/{h['profile']}" if repo and h.get("profile") else None
+        connected.append({"vendor_product": vp, "name": dev.name, "path": dev.path, "in_library": bool(hits), "entries": hits})
+    print(json.dumps({"library": url, "library_size": len(lib.get("devices", [])),
+                      "matched": [c for c in connected if c["in_library"]],
+                      "not_in_library": [{k: c[k] for k in ("vendor_product", "name")} for c in connected if not c["in_library"]]},
+                     indent=1))
+
+
 def cmd_watch(a):
     dev = resolve(a.device)
     for _, label, detail in events(dev, time.time() + a.seconds):
@@ -220,6 +258,7 @@ def main():
     p.add_argument("--seconds", type=float, default=90); p.set_defaults(f=cmd_capture)
     p = sp.add_parser("press"); p.add_argument("device"); p.add_argument("--label")
     p.add_argument("--seconds", type=float, default=60); p.set_defaults(f=cmd_press)
+    p = sp.add_parser("library"); p.add_argument("--library"); p.set_defaults(f=cmd_library)
     p = sp.add_parser("watch"); p.add_argument("device"); p.add_argument("--seconds", type=float, default=30)
     p.set_defaults(f=cmd_watch)
     a = ap.parse_args()
