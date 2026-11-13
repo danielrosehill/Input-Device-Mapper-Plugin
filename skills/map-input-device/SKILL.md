@@ -6,7 +6,7 @@ description: Identify a USB/Bluetooth input device on Linux (gamepad, macro pad,
 # Map an input device
 
 Find out what a newly connected device is (vendor:product, driver, stable path) and what each physical button
-really emits, by asking the user to press the buttons in a fixed order while a capture runs. Output is a device
+really emits, by asking the user to press one button at a time and reading each press as it happens. Output is a device
 profile (JSON + a short table) the user can hand to an app, a remapper or a shortcut tool.
 
 Script: `scripts/idmap.py` in this plugin (resolve it relative to the plugin root). Run it as `python3 -I <path>/idmap.py`.
@@ -34,21 +34,25 @@ python3 -I idmap.py info <vvvv:pppp | /dev/input/...>
 Gives the udev properties (`ID_SERIAL`, `ID_USB_DRIVER`, `ID_INPUT_JOYSTICK`…), declared keys, axes with ranges and
 force feedback. Declared is not the same as present: many devices declare buttons they do not have.
 
-## 3. Guided press session (the ground truth)
+## 3. Guided press session: one button at a time (the ground truth)
 
-1. Work out the physical buttons from the device itself or the user (photo, printed labels, a product page).
-2. Write the press order as a numbered list for the user. One input per step; triggers pulled fully; D-pad and hat
-   directions as separate steps; stick clicks as their own steps.
-3. Start the capture **in the background** before the user presses, then show them the list:
+Never hand the user a list of buttons to press in sequence: on an unfamiliar device they cannot hold the order in
+their head. Go one button per round:
+
+1. Work out the physical buttons from `info`, the device itself or the user (labels, photo, product page), and keep
+   the list yourself.
+2. Each round, tell the user the **one** button to press (with where it is, e.g. "the blue X, left face button"),
+   then immediately run in the foreground:
    ```bash
-   python3 -I idmap.py capture <device> --count <N> --seconds 240 > <out>.json
+   python3 -I idmap.py press <device> --label "<physical label>" --seconds 60
    ```
-   It records each distinct input once, in first-press order: key codes, hat directions, and axes pushed past half
-   travel (`ABS_Z+` for a trigger, `ABS_X-` for a stick pushed left). It stops at N inputs or the timeout.
-4. Pair step *k* of the list with press *k*. If `complete` is false or the count is off (a button that emits
-   nothing, a double-press, a trigger that is digital), re-run just the doubtful steps with a smaller `--count`
-   rather than the whole list.
-5. For open exploration ("what does this odd button do"), use `watch <device> --seconds 30`, which prints every press.
+   It waits for one input and prints it (key code, hat direction, or axis past half travel such as `ABS_Z+`).
+3. Report the result in one line ("X → BTN_X, code 307, browser index 2") and move to the next button. On a
+   timeout, ask whether they pressed it; a button that emits nothing is a finding, not a retry loop.
+4. Ask the user for buttons you did not know about at the end ("anything left you haven't pressed?") and run
+   `press` once more per extra button.
+5. For open exploration ("what does this odd button do"), use `watch <device> --seconds 30`, which prints every
+   press. `capture --count N` (N inputs in order) exists for scripted checks, not for people.
 
 ## 4. Gamepads used in a browser or Electron app
 

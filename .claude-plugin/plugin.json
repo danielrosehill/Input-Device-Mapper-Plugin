@@ -1,7 +1,7 @@
 {
   "name": "input-device-mapper",
   "version": "0.1.0",
-  "description": "Identify a Linux input device (gamepad, macro pad, pedal, remote) by vendor:product and udev, and map each physical button to its evdev code and browser gamepad index through a guided press session.",
+  "description": "Identify a Linux input device (gamepad, macro pad, pedal, remote) by vendor:product and udev, and map each physical button to its evdev code and browser gamepad index one button at a time.",
   "author": { "name": "Daniel Rosehill", "email": "public@danielrosehill.com", "url": "https://danielrosehill.com" },
   "repository": "https://github.com/danielrosehill/Input-Device-Mapper-Plugin",
   "license": "MIT",

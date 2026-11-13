@@ -6,6 +6,8 @@ Subcommands (all print JSON):
   info  <device>                one device in full: udev properties, declared keys and axes, force feedback
   capture <device> --count N    wait for N distinct inputs (buttons, hat directions, triggers/axes pushed past
                                 half travel) and print them in the order they were first pressed
+  press <device> [--label L]    wait for ONE input and print it (the one-button-at-a-time session; drains anything
+                                pressed before it started, so a stray earlier press is not reported)
   watch <device> --seconds S    print every press for S seconds (JSON lines), for free exploration
 
 <device> is /dev/input/eventN, a /dev/input/by-id/... path, or a vendor:product like 046d:c21d.
@@ -192,6 +194,17 @@ def cmd_capture(a):
                       "complete": len(out) >= a.count, "expected": a.count}, indent=1))
 
 
+def cmd_press(a):
+    dev = resolve(a.device)
+    while dev.read_one() is not None:  # drop queued events from before the prompt
+        pass
+    for _, label, detail in events(dev, time.time() + a.seconds):
+        print(json.dumps({"label": a.label, "evdev": label, **detail,
+                          "browser_standard_index": browser_index(label)}))
+        return
+    print(json.dumps({"label": a.label, "timeout": a.seconds}))
+
+
 def cmd_watch(a):
     dev = resolve(a.device)
     for _, label, detail in events(dev, time.time() + a.seconds):
@@ -205,6 +218,8 @@ def main():
     p = sp.add_parser("info"); p.add_argument("device"); p.set_defaults(f=cmd_info)
     p = sp.add_parser("capture"); p.add_argument("device"); p.add_argument("--count", type=int, required=True)
     p.add_argument("--seconds", type=float, default=90); p.set_defaults(f=cmd_capture)
+    p = sp.add_parser("press"); p.add_argument("device"); p.add_argument("--label")
+    p.add_argument("--seconds", type=float, default=60); p.set_defaults(f=cmd_press)
     p = sp.add_parser("watch"); p.add_argument("device"); p.add_argument("--seconds", type=float, default=30)
     p.set_defaults(f=cmd_watch)
     a = ap.parse_args()
