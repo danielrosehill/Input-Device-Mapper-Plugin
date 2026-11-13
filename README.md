@@ -5,6 +5,15 @@ gamepad, macro pad, foot pedal or presentation remote; the agent finds it (vendo
 `/dev/input/by-id` path), asks you to press one button at a time and confirms each as you go, and writes a device
 profile: physical label → evdev code → predicted browser gamepad index.
 
+## What a session looks like
+
+The agent names one button, waits for the press, confirms what it sent, then names the next:
+
+<p>
+<img src="docs/screenshots/01-press-a.png" alt="Agent asks for A; the press is read as BTN_A, code 304, browser button 0" width="360">
+<img src="docs/screenshots/02-next-button.png" alt="Confirmed, the agent asks for B and waits" width="360">
+</p>
+
 Use it before building per-device bindings in an app, an input-remapper preset or a shortcut.
 
 ## Skills
